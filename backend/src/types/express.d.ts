@@ -1,9 +1,10 @@
-import { JwtPayload } from 'jsonwebtoken';
+
+import { LanguageServiceMode } from "typescript";
 
 declare global {
   namespace Express {
     interface Request {
-      user?: string | JwtPayload;
+      userId: string; // Declares that userId can exist on Express Request globally
     }
   }
 }

@@ -1,9 +1,9 @@
 import { Request, Response } from "express"
 import { userTypes } from "../types";
-import userModel, { userSchema } from "../models/user";
 import bcrypt from "bcrypt";
 import  jwt from "jsonwebtoken";
 import { ENV } from "../config/env";
+import { User } from "../models/user";
 
 
 export const create_user=async (req:Request,res:Response)=>{
@@ -16,7 +16,7 @@ export const create_user=async (req:Request,res:Response)=>{
         }
         else{
             const hashedPassword=await bcrypt.hash(data.password,10);
-            const createUser=await userModel.create({
+            const createUser=await User.create({
                 email:data.email,
                 password:hashedPassword
             });
@@ -45,7 +45,7 @@ export const sign_user=async(req:Request,res:Response)=>{
                 message:"Invalid email or password"
             })
         }
-        const user=await userModel.findOne({
+        const user=await User.findOne({
             email:data.email,
         })
            if(!user?.password){
@@ -79,7 +79,7 @@ export const sign_user=async(req:Request,res:Response)=>{
     }
 }
 
-export const logout_user=async(req:Request,res:Response)=>{
+export const signout_user=async(req:Request,res:Response)=>{
    return res
    .clearCookie('access_token')
    .json({ message:"logged out successfully."})

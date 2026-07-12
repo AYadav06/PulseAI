@@ -1,18 +1,38 @@
 
 import { model, Schema } from "mongoose";
+import { boolean } from "zod";
 
-export const userSchema= new Schema({
+
+export interface IUser extends Document{
+email :string,
+password:string,
+credits:number,
+isPremium:boolean,
+createdAt:Date,
+updatedAt:Date
+}
+
+const userSchema= new Schema<IUser>({
 
     email:{
         type:String,
         required:[true,"Please enter a email"],
-        unique:true
+        unique:true,
+        trim:true
     },
     password:{
         type:String,
-        required:[true],
-    }
-})
+        required:[true,"please enter a password"],
+    },
+    credits: {
+        type: Number,
+        default:5
+    },
+    isPremium: {
+        type: Boolean,
+        default:false
+     }
+    },
+     {timestamps:true})
 
-const userModel=model("User",userSchema);
-export default userModel;
+export const User=model<IUser>("User",userSchema);
