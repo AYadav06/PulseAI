@@ -20,8 +20,22 @@ export const create_user=async (req:Request,res:Response)=>{
                 email:data.email,
                 password:hashedPassword
             });
-            res.status(200).json({
-                "message":"User is created..."
+            const token=jwt.sign({
+                id:createUser._id,
+            },ENV.JWT_SECRETE as string,
+            {expiresIn:"7d"});
+
+            res
+            .status(201)
+            .cookie('access_token',token,{
+                httpOnly:true,
+                secure:ENV.NODE_ENV === "Production",
+                sameSite:ENV.NODE_ENV === "Production" ? "none" : "lax" as any,
+                maxAge: 7*24*60*60*1000 
+            })
+            .json({
+                message:"User is created...",
+                user: { id: createUser._id, email: createUser.email }
             })
             
         }
@@ -64,13 +78,16 @@ export const sign_user=async(req:Request,res:Response)=>{
             .status(200)
             .cookie('access_token',token,{
                 httpOnly:true,
-                secure:true,
-                sameSite:ENV.NODE_ENV =="Production",
+                secure:ENV.NODE_ENV === "Production",
+                sameSite:ENV.NODE_ENV === "Production" ? "none" : "lax" as any,
                 maxAge: 7*24*60*60*1000 
             })
             .json({
-                message:"Login Successful"
+                message:"Login Successful",
+                user: { id: user._id, email: user.email }
             })
+        } else {
+            return res.status(401).json({ message:"Invalid email or password" })
         }
         } catch (error) {
            return res.json({
@@ -83,4 +100,18 @@ export const signout_user=async(req:Request,res:Response)=>{
    return res
    .clearCookie('access_token')
    .json({ message:"logged out successfully."})
+}
+
+export const getMe=async(req:Request,res:Response)=>{
+    try {
+        const user=await User.findById(req.userId).select('-password');
+        if(!user){
+            return res.status(404).json({ message:"User not found" });
+        }
+        return res.status(200).json({
+            user: { id: user._id, email: user.email }
+        });
+    } catch (error) {
+        return res.status(500).json({ message:"Internal server error" });
+    }
 }

@@ -53,9 +53,10 @@ export const handleStreamingChat= async (req:Request,res:Response):Promise<void>
    res.setHeader('Cache-Control','no-cache');
    res.setHeader('Connection','keep-alive');
    res.flushHeaders();
+   res.write(`data: ${JSON.stringify({ conversationId: activeConversation._id.toString() })}\n\n`);
 
    const responseStream=await  ai.models.generateContentStream({
-    model:'gemini-2.5-flash',
+    model:data.model,
     contents:message,
    });
 
@@ -79,7 +80,7 @@ export const handleStreamingChat= async (req:Request,res:Response):Promise<void>
         conversationId:activeConversation._id
     });
    }
-   res.write('data:[Done]\n\n');
+   res.write('data: [DONE]\n\n');
    res.end();
 
     } catch (error) {
@@ -90,5 +91,23 @@ export const handleStreamingChat= async (req:Request,res:Response):Promise<void>
 }
 
 export const deleteChat=async(req:Request,res:Response)=>{
+    const userId=req.userId;
+    const chatId=req.params.chatId as string;
 
+    try {
+        const conversation=await Conversation.findOneAndDelete({
+            _id:chatId,
+            userId
+        });
+        if(!conversation){
+            res.status(404).json({ message:"Conversation not found" });
+            return;
+        }
+        // Also remove the linked Execution (sidebar entry)
+        await Execution.findOneAndDelete({ conversationId:chatId as any, userId });
+        res.status(200).json({ message:"Conversation deleted" });
+    } catch(error){
+        console.error("Error deleting chat:",error);
+        res.status(500).json({ message:"Internal server error" });
+    }
 }

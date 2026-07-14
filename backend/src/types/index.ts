@@ -12,9 +12,19 @@ export type ModelFull={
     isPremium:boolean
 }
 export const MODELS:ModelFull[]=[
-      {
-    id: "google/gemini-2.5-flash",
-    name: "Gemini 2.5 Flash",
+  {
+    id: "gemini-2.0-flash",
+    name: "Gemini 2.0 Flash",
+    isPremium: false
+  },
+  {
+    id: "gemini-1.5-flash",
+    name: "Gemini 1.5 Flash",
+    isPremium: false
+  },
+  {
+    id: "gemini-1.5-pro",
+    name: "Gemini 1.5 Pro",
     isPremium: false
   }
 ]
@@ -23,7 +33,7 @@ export const SUPPORTER_MODELS = MODELS.map(model => model.id);
 export type MODEL = typeof SUPPORTER_MODELS[number];
 
 export const chatschemes=z.object({
-   conversationId:z.uuid().optional(),
+   conversationId:z.string().optional(),
     message:z.string().max(MAX_INPUT_TOKENS),
     model:z.enum(SUPPORTER_MODELS)
 })

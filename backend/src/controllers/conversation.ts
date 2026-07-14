@@ -6,12 +6,12 @@ import { Conversation } from "../models/conversation";
 export const conversationController=async (req:Request,res:Response)=>{
 
     const userId=req.userId;
-    const conversationId=req.params;
+    const conversationId=req.params.converstionId as string;
 
     try {
         
         const execution=await Execution.findOne({
-            conversationId,
+            conversationId: conversationId,
             userId
         });
       if(!execution){
@@ -22,7 +22,7 @@ export const conversationController=async (req:Request,res:Response)=>{
       }
 
       const conversation=await Conversation.findOne({
-        _id:conversationId,
+        _id: conversationId,
         userId:userId
       })
       res.json({
@@ -35,5 +35,17 @@ export const conversationController=async (req:Request,res:Response)=>{
             message:"Internal server error"
         })
         
+    }
+}
+
+export const listExecutions=async (req:Request,res:Response)=>{
+    try {
+        const executions=await Execution.find({ userId: req.userId })
+            .sort({ updatedAt: -1 })
+            .select('title conversationId createdAt updatedAt');
+        res.json({ executions });
+    } catch (error) {
+        console.error("Error listing executions:",error);
+        res.status(500).json({ message:"Internal server error" });
     }
 }
