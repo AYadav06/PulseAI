@@ -16,6 +16,7 @@ jobs:
                 key: ${{ secrets.SSH_KEY }}
                 script: |
                  export PATH="$HOME/.nvm/versions/node/v24.13.0/bin:$PATH"
+                 git pull origin main 
                  cd PulseAI/backend
                  npm i 
                  npm run build 
