@@ -1,0 +1,23 @@
+name: CD
+on:
+    push:
+        branches:
+            -main
+
+jobs:
+    deploy:
+        runs-on: ubuntu-latest
+        steps:
+            - name: deploy to VM 
+              uses: appleboy/ssh-action@v1
+              with:
+                host: ${{ secrets.HOST }}
+                username: ${{ secrets.USERNAME }}
+                key: ${{ secrets.SSH_KEY }}
+                scripts: |
+                 export PATH="$HOME/.nvm/versions/node/v24.13.0/bin:$PATH"
+                 cd PulseAI/backend
+                 npm i 
+                 npm run build 
+                 pm2 restart app
+                 pm2 save
