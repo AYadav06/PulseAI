@@ -79,6 +79,11 @@ export const handleStreamingChat= async (req:Request,res:Response):Promise<void>
         title:message.substring(0,40) + '...',
         conversationId:activeConversation._id
     });
+   } else {
+    await Execution.findOneAndUpdate(
+        { conversationId: activeConversation._id, userId },
+        { updatedAt: new Date() }
+    );
    }
    res.write('data: [DONE]\n\n');
    res.end();

@@ -37,3 +37,23 @@ export const chatschemes=z.object({
     message:z.string().max(MAX_INPUT_TOKENS),
     model:z.enum(SUPPORTER_MODELS)
 })
+
+// ---- Payment Plan Types ----
+
+export type PlanType = "starter" | "pro" | "premium";
+
+export const PLANS: Record<PlanType, { amount: number; credits: number; label: string }> = {
+  starter:  { amount: 9900,  credits: 50,  label: "Starter Pack" },
+  pro:      { amount: 29900, credits: 200, label: "Pro Pack" },
+  premium:  { amount: 49900, credits: 0,   label: "Premium Unlock" }, // sets isPremium=true
+};
+
+export const createOrderSchema = z.object({
+  plan: z.enum(["starter", "pro", "premium"]),
+});
+
+export const verifyPaymentSchema = z.object({
+  razorpay_order_id: z.string(),
+  razorpay_payment_id: z.string(),
+  razorpay_signature: z.string(),
+});

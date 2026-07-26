@@ -6,7 +6,7 @@ import { Conversation } from "../models/conversation";
 export const conversationController=async (req:Request,res:Response)=>{
 
     const userId=req.userId;
-    const conversationId=req.params.converstionId as string;
+    const conversationId=(req.params.conversationId || req.params.converstionId) as string;
 
     try {
         

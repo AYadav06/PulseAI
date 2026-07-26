@@ -7,6 +7,7 @@ import { deleteChat, handleStreamingChat } from "../controllers/chat_controller"
 export const chatRouter=Router();
 
 
+chatRouter.get("/conversation/:conversationId",authMiddleware,conversationController);
 chatRouter.get("/converstion/:converstionId",authMiddleware,conversationController);
 chatRouter.post("/chat",authMiddleware,handleStreamingChat);
 chatRouter.delete("/chat/:chatId",authMiddleware,deleteChat);

@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import connectDb from "./config/db";
 import { userRouter } from "./routes/auth";
 import { chatRouter } from "./routes/chat";
+import { paymentRouter } from "./routes/payment";
 import cookieParser from "cookie-parser";
 
 dotenv.config();
@@ -18,6 +19,7 @@ app.use(cookieParser());
 
 app.use("/api/v1",userRouter);
 app.use("/api/v1",chatRouter);
+app.use("/api/v1",paymentRouter);
 connectDb();
 app.listen(port ,()=>{
     console.log("server is running...");
