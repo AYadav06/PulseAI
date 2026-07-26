@@ -2,7 +2,7 @@ name: CD
 on:
     push:
         branches:
-            -main
+            - main
 
 jobs:
     deploy:
@@ -14,7 +14,7 @@ jobs:
                 host: ${{ secrets.HOST }}
                 username: ${{ secrets.USERNAME }}
                 key: ${{ secrets.SSH_KEY }}
-                scripts: |
+                script: |
                  export PATH="$HOME/.nvm/versions/node/v24.13.0/bin:$PATH"
                  cd PulseAI/backend
                  npm i 
