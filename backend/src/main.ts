@@ -1,6 +1,5 @@
 import express  from "express";
 import cors from "cors";
-
 import dotenv from "dotenv";
 import connectDb from "./config/db";
 import { userRouter } from "./routes/auth";
@@ -15,7 +14,6 @@ const port=3000;
 
 app.use(express.json());
 app.use(cookieParser());
-
 
 
 const allowedOrigins = [
@@ -39,6 +37,8 @@ app.use(
 app.use("/api/v1",userRouter);
 app.use("/api/v1",chatRouter);
 app.use("/api/v1",paymentRouter);
+
+
 
 app.get("/", (req, res) => {
   res.json({
