@@ -20,7 +20,7 @@ app.use(cookieParser());
 
 const allowedOrigins = [
   "http://localhost:5173",
-  process.env.FRONTEND_URL, 
+  process.env.FRONTEND_URL || "https://app.pulseai.amitdev.site", 
 ];
 
 app.use(
@@ -39,6 +39,13 @@ app.use(
 app.use("/api/v1",userRouter);
 app.use("/api/v1",chatRouter);
 app.use("/api/v1",paymentRouter);
+
+app.get("/", (req, res) => {
+  res.json({
+    status: "ok",
+    message: "PulseAI Backend is running",
+  });
+});
 connectDb();
 app.listen(port ,()=>{
     console.log("server is running...");
