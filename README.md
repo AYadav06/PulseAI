@@ -13,6 +13,7 @@ PulseAI is a modern, full-stack AI chat application built with Node.js, Express,
 - 🔐 **Secure Authentication**: Password hashing with `bcrypt`, JWT stored in `httpOnly` secure cookies.
 - 💬 **Conversation Management**: Session tracking, execution history sidebar, chat deletion, and credit deductions per model tier.
 - 🎨 **Modern Dark UI**: React 19, Vite, TypeScript, TailwindCSS v4, Lucide icons, and Markdown response rendering.
+- 🚀 **Automated CI/CD**: GitHub Actions deploying automatically to AWS EC2 VM with PM2, Nginx, and Certbot SSL.
 
 ---
 
@@ -39,12 +40,24 @@ PulseAI is a modern, full-stack AI chat application built with Node.js, Express,
 | **Lucide & Phosphor Icons** | UI icons |
 | **React Markdown & Remark GFM** | Markdown & code block rendering |
 
+### DevOps & Deployment
+| Technology | Description |
+| :--- | :--- |
+| **AWS EC2** | Linux Virtual Machine hosting backend |
+| **GitHub Actions** | Automated CI/CD CD pipeline on `git push main` |
+| **PM2** | Process manager keeping backend running continuously |
+| **Nginx** | Reverse proxy, HTTP-to-HTTPS redirection & CORS handling |
+| **Certbot (Let's Encrypt)** | Free automated SSL/TLS certificates and renewal |
+
 ---
 
 ## 📁 Repository Structure
 
 ```
 PulseAI/
+├── .github/
+│   └── workflows/
+│       └── cd.yml                  # GitHub Actions CI/CD Deployment Workflow
 ├── backend/                        # Node.js Express Backend
 │   ├── src/
 │   │   ├── config/                 # DB, ENV, and Razorpay initializers
@@ -232,3 +245,107 @@ When testing in **Test Mode**:
   - **UPI / Netbanking**: Select Netbanking/UPI in modal and click **Success** on the mock page.
 
 ---
+
+## 🚀 Deployment (AWS EC2 + GitHub Actions + PM2 + Nginx + Certbot)
+
+This project features an automated **CI/CD Pipeline** that automatically deploys backend updates to an **AWS EC2 Virtual Machine** whenever code is pushed to the `main` branch.
+
+### 🤖 CI/CD Workflow (`.github/workflows/cd.yml`)
+The workflow utilizes `appleboy/ssh-action` to log into the EC2 instance via SSH, pull the latest code, install dependencies, compile TypeScript, and restart the server gracefully with PM2:
+
+```yaml
+name: CD
+on:
+    push:
+        branches:
+            - main
+
+jobs:
+    deploy:
+        runs-on: ubuntu-latest
+        steps:
+            - name: deploy to VM 
+              uses: appleboy/ssh-action@v1
+              with:
+                host: ${{ secrets.HOST }}
+                username: ${{ secrets.USERNAME }}
+                key: ${{ secrets.SSH_KEY }}
+                script: |
+                 export PATH="$HOME/.nvm/versions/node/v24.13.0/bin:$PATH"
+                 cd PulseAI/backend
+                 git pull origin main 
+                 npm i 
+                 npm run build 
+                 pm2 restart app
+                 pm2 save
+```
+
+### ⚙️ Server Configuration on AWS EC2
+
+#### 1. Process Manager (PM2)
+PM2 ensures the Express backend runs continuously in the background and automatically revives upon system reboot or unexpected errors:
+```bash
+# Start backend app with PM2
+cd PulseAI/backend
+pm2 start dist/main.js --name "app"
+pm2 save
+pm2 startup
+```
+
+#### 2. Reverse Proxy (Nginx)
+Nginx sits in front of the Node.js application, handling incoming HTTP/HTTPS traffic on port `80`/`443` and forwarding requests to Express running locally on port `3000`.
+
+Example `/etc/nginx/sites-available/default` configuration:
+```nginx
+server {
+    listen 80;
+    server_name pulseai.amitdev.site;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+#### 3. SSL/TLS Encryption with Certbot (Let's Encrypt)
+Certbot is used to automatically issue, configure, and renew free SSL/TLS certificates for HTTPS encryption.
+
+**Step A: Install Certbot & Nginx plugin**
+```bash
+sudo apt update
+sudo apt install certbot python3-certbot-nginx -y
+```
+
+**Step B: Obtain & Configure SSL Certificate**
+Run Certbot to automatically configure Nginx for SSL HTTPS on your domain:
+```bash
+sudo certbot --nginx -d pulseai.amitdev.site
+```
+> Certbot automatically modifies `/etc/nginx/sites-available/default` to listen on port `443` with SSL enabled and sets up automatic HTTP-to-HTTPS redirection on port `80`.
+
+**Step C: Verify Automatic Certificate Renewal**
+Certbot automatically installs a systemd timer to renew certificates before they expire. Test auto-renewal with:
+```bash
+sudo certbot renew --dry-run
+```
+
+#### 4. GitHub Secrets Setup
+To enable the deployment workflow, set the following secrets in GitHub Repository $\rightarrow$ **Settings** $\rightarrow$ **Secrets and variables** $\rightarrow$ **Actions**:
+
+- **`HOST`**: Public IP or DNS of the AWS EC2 instance.
+- **`USERNAME`**: SSH login username (e.g. `ubuntu` or `ec2-user`).
+- **`SSH_KEY`**: Private SSH key (`.pem` / `id_rsa`) associated with the EC2 instance.
+
+---
+
+## 📄 License
+
+ISC License. Built with ❤️ for PulseAI.
