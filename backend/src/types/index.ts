@@ -9,12 +9,13 @@ export const  userTypes= z.object({
 export type ModelFull={
     id:string;
     name:string;
-    isPremium:boolean
+    isPremium:boolean;
+    creditCost:number;
 }
 export const MODELS:ModelFull[]=[
-  { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", isPremium: false },
-  { id: "gemini-2.5-flash-lite", name: "Gemini 2.5 Flash Lite", isPremium: false },
-  { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", isPremium: true },
+  { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", isPremium: false, creditCost: 2 },
+  { id: "gemini-2.5-flash-lite", name: "Gemini 2.5 Flash Lite", isPremium: false, creditCost: 1 },
+  { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", isPremium: true, creditCost: 5 },
 ]
 
 export const SUPPORTER_MODELS = MODELS.map(model => model.id);

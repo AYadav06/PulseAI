@@ -46,7 +46,12 @@ export const create_user = async (req: Request, res: Response) => {
             .json({
                 message: "User is created...",
                 token,
-                user: { id: createUser._id, email: createUser.email }
+                user: {
+                    id: createUser._id,
+                    email: createUser.email,
+                    credits: createUser.credits,
+                    isPremium: createUser.isPremium
+                }
             });
     } catch (e) {
         console.error("Signup error details:", e);
@@ -96,7 +101,12 @@ export const sign_user = async (req: Request, res: Response) => {
             .json({
                 message: "Login Successful",
                 token,
-                user: { id: user._id, email: user.email }
+                user: {
+                    id: user._id,
+                    email: user.email,
+                    credits: user.credits,
+                    isPremium: user.isPremium
+                }
             });
     } catch (error) {
         console.error("Signin error details:", error);

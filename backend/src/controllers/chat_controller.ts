@@ -4,98 +4,169 @@ import { Request, Response } from "express";
 import { chatschemes, MODELS } from "../types";
 import { Conversation } from "../models/conversation";
 import { Execution } from "../models/execution";
+import { User } from "../models/user";
 
-
-
-const ai =new GoogleGenAI({
-    apiKey:ENV.GEMINI_API_KEY
+const ai = new GoogleGenAI({
+    apiKey: ENV.GEMINI_API_KEY
 });
 
+export const handleStreamingChat = async (req: Request, res: Response): Promise<void> => {
+    const userId = req.userId;
 
-export const handleStreamingChat= async (req:Request,res:Response):Promise<void>=>{
-    const userId=req.userId;
-
-    const {data,success}=chatschemes.safeParse(req.body);
-    const conversationId=data?.conversationId;
-    if(!success || !data){
-
+    const { data, success } = chatschemes.safeParse(req.body);
+    const conversationId = data?.conversationId;
+    if (!success || !data) {
         res.status(411).json({
-            message:"Incorrect inputs"
+            message: "Incorrect inputs"
         });
-        return ;
+        return;
     }
-    const message=data.message;
+
+    const message = data.message;
+    const modelId = data.model;
+
+    // 1. Verify model exists
+    const selectedModel = MODELS.find(m => m.id === modelId);
+    if (!selectedModel) {
+        res.status(400).json({
+            message: "Invalid model selected"
+        });
+        return;
+    }
+
+    // 2. Fetch user to check premium access and credit balance
+    const user = await User.findById(userId);
+    if (!user) {
+        res.status(404).json({
+            message: "User not found"
+        });
+        return;
+    }
+
+    // 3. Premium Gating: Models flagged with isPremium require a premium subscription
+    if (selectedModel.isPremium && !user.isPremium) {
+        res.status(403).json({
+            message: `${selectedModel.name} requires a Premium subscription. Please upgrade to access this model.`
+        });
+        return;
+    }
+
+    // 4. Credit Deduction: Premium users have unlimited usage. Free users pay per message.
+    let creditDeducted = 0;
+    let remainingCredits = user.credits;
+
+    if (!user.isPremium) {
+        const cost = selectedModel.creditCost ?? 1;
+        if (user.credits < cost) {
+            res.status(402).json({
+                message: `Insufficient credits. ${selectedModel.name} requires ${cost} credits, but you have ${user.credits}. Please top up your credits.`
+            });
+            return;
+        }
+
+        // Atomically deduct credits to prevent concurrent overspending
+        const updatedUser = await User.findOneAndUpdate(
+            { _id: userId, credits: { $gte: cost } },
+            { $inc: { credits: -cost } },
+            { returnDocument: 'after' }
+        );
+
+        if (!updatedUser) {
+            res.status(402).json({
+                message: `Insufficient credits. ${selectedModel.name} requires ${cost} credits, but you have ${user.credits}. Please top up your credits.`
+            });
+            return;
+        }
+
+        creditDeducted = cost;
+        remainingCredits = updatedUser.credits;
+    }
+
     let activeConversation;
-    let isNewchat=false;
+    let isNewchat = false;
 
-    try{
-   if(conversationId){
-    activeConversation=await Conversation.findOne({
-        _id:conversationId,
-        userId
-    })
-   }
-   if(!activeConversation){
-    activeConversation=new Conversation({
-        userId,
-        messages:[]
-    });
-    isNewchat=true;
-   }
+    try {
+        if (conversationId) {
+            activeConversation = await Conversation.findOne({
+                _id: conversationId,
+                userId
+            });
+        }
+        if (!activeConversation) {
+            activeConversation = new Conversation({
+                userId,
+                messages: []
+            });
+            isNewchat = true;
+        }
 
-   const history=activeConversation.messages.map(msg =>({
-    role:msg.role === "assistant" ?"assistant":"user",
-    parts:[{text:msg.content}]
-   }));
+        // set http header ..
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.flushHeaders();
+        res.write(`data: ${JSON.stringify({ 
+            conversationId: activeConversation._id.toString(),
+            remainingCredits: user.isPremium ? undefined : remainingCredits
+        })}\n\n`);
 
-   // set http header ..
-   res.setHeader('Content-Type','text/event-stream');
-   res.setHeader('Cache-Control','no-cache');
-   res.setHeader('Connection','keep-alive');
-   res.flushHeaders();
-   res.write(`data: ${JSON.stringify({ conversationId: activeConversation._id.toString() })}\n\n`);
+        const MODEL_API_MAP: Record<string, string> = {
+            "gemini-2.5-flash-lite": "gemini-3.5-flash-lite",
+            "gemini-2.5-flash": "gemini-3.6-flash",
+            "gemini-2.5-pro": "gemini-3.1-pro-preview",
+        };
 
-   const responseStream=await  ai.models.generateContentStream({
-    model:data.model,
-    contents:message,
-   });
+        const geminiModel = MODEL_API_MAP[data.model] || data.model;
 
-   let completeAiResponse='';
+        const responseStream = await ai.models.generateContentStream({
+            model: geminiModel,
+            contents: message,
+        });
 
-   for await (const chunk of responseStream) {
-   const chunkText = chunk.text || '';
-   completeAiResponse += chunkText;
-   res.write(`data: ${JSON.stringify({ text: chunkText })}\n\n`);
-   }
+        let completeAiResponse = '';
 
-   activeConversation.messages.push({role:'user',content:message,createdAt:new Date()});
-   activeConversation.messages.push({role:'assistant',content:completeAiResponse,createdAt:new Date()});
+        for await (const chunk of responseStream) {
+            const chunkText = chunk.text || '';
+            completeAiResponse += chunkText;
+            res.write(`data: ${JSON.stringify({ text: chunkText })}\n\n`);
+        }
 
-   await activeConversation.save();
+        activeConversation.messages.push({ role: 'user', content: message, createdAt: new Date() });
+        activeConversation.messages.push({ role: 'assistant', content: completeAiResponse, createdAt: new Date() });
 
-   if(isNewchat){
-    await Execution.create({
-        userId,
-        title:message.substring(0,40) + '...',
-        conversationId:activeConversation._id
-    });
-   } else {
-    await Execution.findOneAndUpdate(
-        { conversationId: activeConversation._id, userId },
-        { updatedAt: new Date() }
-    );
-   }
-   res.write('data: [DONE]\n\n');
-   res.end();
+        await activeConversation.save();
+
+        if (isNewchat) {
+            await Execution.create({
+                userId,
+                title: message.substring(0, 40) + '...',
+                conversationId: activeConversation._id
+            });
+        } else {
+            await Execution.findOneAndUpdate(
+                { conversationId: activeConversation._id, userId },
+                { updatedAt: new Date() }
+            );
+        }
+        res.write('data: [DONE]\n\n');
+        res.end();
 
     } catch (error) {
-    console.error('Streaming Interruption:', error);
-    try {
-        res.write(`data: ${JSON.stringify({ error: "Something went wrong generating a response." })}\n\n`);
-        res.write('data: [DONE]\n\n');
-    } catch {}
-    res.end();
-}
+        console.error('Streaming Interruption:', error);
+        // Refund deducted credits if generation failed
+        if (creditDeducted > 0) {
+            try {
+                await User.findByIdAndUpdate(userId, { $inc: { credits: creditDeducted } });
+            } catch (refundErr) {
+                console.error('Failed to refund credits:', refundErr);
+            }
+        }
+        try {
+            res.write(`data: ${JSON.stringify({ error: "Something went wrong generating a response." })}\n\n`);
+            res.write('data: [DONE]\n\n');
+        } catch {}
+        res.end();
+    }
 
 
 }
