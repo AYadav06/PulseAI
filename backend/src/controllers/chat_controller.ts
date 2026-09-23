@@ -70,7 +70,7 @@ export const handleStreamingChat= async (req:Request,res:Response):Promise<void>
 
    activeConversation.messages.push({role:'user',content:message,createdAt:new Date()});
    activeConversation.messages.push({role:'assistant',content:completeAiResponse,createdAt:new Date()});
-  
+
    await activeConversation.save();
 
    if(isNewchat){
@@ -89,9 +89,14 @@ export const handleStreamingChat= async (req:Request,res:Response):Promise<void>
    res.end();
 
     } catch (error) {
-        console.error('Streaming Interruption:',error);
-    }
- 
+    console.error('Streaming Interruption:', error);
+    try {
+        res.write(`data: ${JSON.stringify({ error: "Something went wrong generating a response." })}\n\n`);
+        res.write('data: [DONE]\n\n');
+    } catch {}
+    res.end();
+}
+
 
 }
 
