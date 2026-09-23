@@ -29,11 +29,12 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: (origin, callback) => {
+      const cleanOrigin = origin ? origin.replace(/\/$/, "") : "";
       if (
         !origin ||
-        allowedOrigins.includes(origin) ||
-        origin.endsWith(".vercel.app") ||
-        /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)
+        allowedOrigins.some((o) => cleanOrigin === o.replace(/\/$/, "")) ||
+        cleanOrigin.endsWith(".vercel.app") ||
+        /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(cleanOrigin)
       ) {
         callback(null, true);
       } else {
@@ -41,6 +42,8 @@ app.use(
       }
     },
     credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   })
 );
 

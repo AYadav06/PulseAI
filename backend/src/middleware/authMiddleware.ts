@@ -4,29 +4,27 @@ import { JwtPayload } from "jsonwebtoken";
 import jwt from "jsonwebtoken"
 
 
-export const authMiddleware=(req:Request,res:Response,next:NextFunction)=>{
+export const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const bearerToken = authHeader?.startsWith("Bearer ")
+      ? authHeader.slice(7)
+      : null;
+    const token = req.cookies?.access_token || bearerToken;
 
- try {
-    const token=req.cookies.access_token;
-
-    if(!token){
-        return res
-        .status(400)
-        .json({message:"no token ,authorization denied."})
+    if (!token) {
+      return res
+        .status(401)
+        .json({ message: "No token, authorization denied." });
     }
 
-    const decoded=jwt.verify(token,ENV.JWT_SECRETE as string) as JwtPayload;
-    req.userId=decoded.id;
+    const decoded = jwt.verify(token, ENV.JWT_SECRETE as string) as JwtPayload;
+    req.userId = decoded.id;
     next();
-
- } 
- catch (error) {
-    return res
-    .status(401)
-    .json(
-        {
-            message:"Unauthorized User",error
-        })
- }
-
-}
+  } catch (error) {
+    return res.status(401).json({
+      message: "Unauthorized User",
+      error,
+    });
+  }
+};
