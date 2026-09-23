@@ -4,7 +4,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "tsc -b && node dist/main.js",
-    "build":"tsc "
+    "build":"tsc ",
+    "start":"bun run src/main.ts"
   },
   "keywords": [],
   "author": "",
